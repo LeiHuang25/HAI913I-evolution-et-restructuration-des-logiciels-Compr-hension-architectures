@@ -5,6 +5,8 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Point d'entrée du squelette : vérifie l'environnement et charge les faits.
@@ -111,10 +113,55 @@ public final class Main {
         OUT.printf(Locale.ROOT, "Arcs du graphe      : %d%n",
                 facts.calls().size());
         OUT.printf(Locale.ROOT, "Seuil CP retenu     : %.4f%n", cp);
-
+        
+        
         // TODO étape A1 : écarter les arcs intra-classe, agréger les arcs
         //                 restants par couple de classes distinctes, puis
         //                 calculer C(A, B) = r(A, B) / |E_inter|.
+        
+        Coupling coupling = new Coupling(facts);
+
+        OUT.printf(Locale.ROOT, "Arcs intra-classe   : %d%n",
+                coupling.intraClassArcs());
+        OUT.printf(Locale.ROOT, "Arcs inter-classes  : %d%n",
+                coupling.interClassArcs());
+        OUT.printf(Locale.ROOT, "Paires non nulles   : %d%n",
+                coupling.nonZeroPairs());
+
+        Map<String, Double> couplings = new TreeMap<>();
+        double couplingSum = 0.0;
+
+        var classNames = facts.classNames();
+
+        for (int i = 0; i < classNames.size(); i++) {
+            for (int j = i + 1; j < classNames.size(); j++) {
+                String a = classNames.get(i);
+                String b = classNames.get(j);
+
+                double value = coupling.value(a, b);
+                couplingSum += value;
+
+                if (value > 0.0) {
+                    couplings.put(a + " <-> " + b, value);
+                }
+            }
+        }
+
+        OUT.println();
+        OUT.println("Couplages par ordre décroissant :");
+
+        couplings.entrySet().stream()
+                .sorted(Map.Entry.<String, Double>comparingByValue()
+                        .reversed()
+                        .thenComparing(Map.Entry.comparingByKey()))
+                .forEach(entry -> OUT.printf(Locale.ROOT,
+                        "%s : %.4f%n",
+                        entry.getKey(), entry.getValue()));
+
+        OUT.printf(Locale.ROOT,
+                "Somme des couplages : %.4f%n", couplingSum);
+        
+        
         // TODO étape A2 : construire et exporter le graphe de couplage pondéré.
         // TODO étape B1 : regroupement hiérarchique ascendant, lien moyen,
         //                 égalités départagées comme le sujet l'impose.

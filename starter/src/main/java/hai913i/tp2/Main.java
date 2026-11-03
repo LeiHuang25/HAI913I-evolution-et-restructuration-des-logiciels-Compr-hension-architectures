@@ -163,6 +163,50 @@ public final class Main {
         
         
         // TODO étape A2 : construire et exporter le graphe de couplage pondéré.
+        
+        CouplingGraph graph = new CouplingGraph(facts.classNames(), coupling);
+
+        OUT.println();
+        OUT.println("Graphe de couplage :");
+        OUT.printf(Locale.ROOT, "Nœuds : %d%n", graph.nodes().size());
+        OUT.printf(Locale.ROOT, "Arêtes : %d%n", graph.edges().size());
+
+        OUT.println("Classes isolées :");
+        for (String name : graph.isolatedClasses()) {
+            OUT.println("  " + name);
+        }
+        
+        Path dotPath = Path.of("output", prefix + "-coupling.dot");
+
+        try {
+            graph.exportDot(dotPath);
+            OUT.println("Export DOT : " + dotPath.toAbsolutePath());
+            
+            graph.exportCsv(Path.of("output"), prefix);
+            CouplingGraph reloaded = CouplingGraph.loadCsv(
+                    Path.of("output"), prefix);
+
+            boolean identical =
+                    graph.nodes().equals(reloaded.nodes())
+                    && graph.edges().equals(reloaded.edges());
+
+            OUT.println("Vérification du rechargement CSV :");
+            OUT.printf(Locale.ROOT, "Nœuds rechargés : %d%n",
+                    reloaded.nodes().size());
+            OUT.printf(Locale.ROOT, "Arêtes rechargées : %d%n",
+                    reloaded.edges().size());
+            OUT.println("Classes isolées : " + reloaded.isolatedClasses());
+            OUT.println("Graphe identique : " + identical);
+
+            if (!identical) {
+                throw new IOException("Le graphe rechargé diffère du graphe initial");
+            }
+            OUT.println("Export CSV : " + Path.of("output").toAbsolutePath());
+        } catch (IOException e) {
+            ERR.println("Export du graphe impossible : " + e.getMessage());
+            System.exit(2);
+            return;
+        }
         // TODO étape B1 : regroupement hiérarchique ascendant, lien moyen,
         //                 égalités départagées comme le sujet l'impose.
         // TODO étape B2 : représenter et exporter le dendrogramme.

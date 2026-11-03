@@ -209,6 +209,12 @@ public final class Main {
         }
         // TODO étape B1 : regroupement hiérarchique ascendant, lien moyen,
         //                 égalités départagées comme le sujet l'impose.
+        
+        HierarchicalClustering clustering = new HierarchicalClustering(coupling);
+
+        Cluster root = clustering.build(facts.classNames());
+
+        ClusteringReporter.print(root, OUT);
         // TODO étape B2 : représenter et exporter le dendrogramme.
         // TODO étape B3 : couper l'arbre sous les trois contraintes, puis
         //                 vérifier la contrainte M/2 et signaler sa violation.

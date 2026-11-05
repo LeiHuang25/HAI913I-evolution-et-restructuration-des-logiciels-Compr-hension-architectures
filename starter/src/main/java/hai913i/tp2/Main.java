@@ -238,8 +238,64 @@ public final class Main {
         }
         // TODO étape B3 : couper l'arbre sous les trois contraintes, puis
         //                 vérifier la contrainte M/2 et signaler sa violation.
+        
+        ModuleCutter cutter = new ModuleCutter(coupling);
+        var modules = cutter.cut(root, cp);
+
         OUT.println();
-        OUT.println("Faits chargés. Les étapes A1 à B3 restent à écrire.");
+        OUT.printf(Locale.ROOT, "Modules pour CP = %.4f :%n", cp);
+
+        int moduleNumber = 1;
+
+        for (Cluster module : modules) {
+            OUT.printf(Locale.ROOT,
+                    "Module %d | classes = %d | moyenne interne = %s%n",
+                    moduleNumber++,
+                    module.members().size(),
+                    module.isLeaf()
+                            ? "N/A (classe unique)"
+                            : String.format(Locale.ROOT, "%.4f",
+                                    cutter.internalAverage(module)));
+
+            OUT.println("  " + module.members());
+        }
+
+        int maximumModules = facts.classes().size() / 2;
+
+        OUT.printf(Locale.ROOT,
+                "Nombre de modules : %d%n", modules.size());
+        OUT.printf(Locale.ROOT,
+                "Maximum autorisé M/2 : %d%n", maximumModules);
+
+        if (modules.size() <= maximumModules) {
+            OUT.println("Contrainte M/2 : RESPECTÉE");
+        } else {
+            OUT.println("Contrainte M/2 : VIOLÉE — coupe rejetée");
+        }
+        
+        
+        
+        
+        String cpLabel = Double.toString(cp);
+
+        Path modulesPath = Path.of(
+                "output",
+                prefix + "-modules-cp-" + cpLabel + ".txt");
+
+        try {
+            ModuleExporter.exportText(
+                    modules, cutter, facts.classes().size(),
+                    cp, modulesPath);
+
+            OUT.println("Modules exportés : "
+                    + modulesPath.toAbsolutePath());
+        } catch (IOException e) {
+            ERR.println("Export des modules impossible : "
+                    + e.getMessage());
+            System.exit(2);
+            return;
+        }
+
     }
 
     /**

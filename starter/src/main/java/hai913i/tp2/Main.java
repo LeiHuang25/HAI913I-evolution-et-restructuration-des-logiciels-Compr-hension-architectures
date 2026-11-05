@@ -216,6 +216,26 @@ public final class Main {
 
         ClusteringReporter.print(root, OUT);
         // TODO étape B2 : représenter et exporter le dendrogramme.
+        
+        Path treePath = Path.of(
+                "output", prefix + "-dendrogram.dot");
+
+        try {
+            DendrogramExporter.exportDot(root, treePath);
+            Path textPath = Path.of(
+                    "output", prefix + "-dendrogram.txt");
+
+            DendrogramExporter.exportText(root, textPath);
+
+            OUT.println("Dendrogramme texte : "
+                    + textPath.toAbsolutePath());
+            OUT.println("Dendrogramme DOT : " + treePath.toAbsolutePath());
+        } catch (IOException e) {
+            ERR.println("Export du dendrogramme impossible : "
+                    + e.getMessage());
+            System.exit(2);
+            return;
+        }
         // TODO étape B3 : couper l'arbre sous les trois contraintes, puis
         //                 vérifier la contrainte M/2 et signaler sa violation.
         OUT.println();

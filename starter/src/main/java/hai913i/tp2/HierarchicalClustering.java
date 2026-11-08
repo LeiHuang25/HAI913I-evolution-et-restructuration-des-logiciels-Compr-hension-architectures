@@ -7,11 +7,15 @@ import java.util.List;
 public final class HierarchicalClustering {
 	private static final double EPSILON = 1e-9;
 	
-	private final AverageLinkage linkage;
+	private final Linkage linkage;
 	
 	public HierarchicalClustering(Coupling coupling) {
-        this.linkage = new AverageLinkage(coupling);
+        this(new AverageLinkage(coupling));
     }
+	
+	public HierarchicalClustering(Linkage linkage) {
+		this.linkage = linkage;
+	}
 
     public Cluster build(List<String> classNames) {
         if (classNames.isEmpty()) {

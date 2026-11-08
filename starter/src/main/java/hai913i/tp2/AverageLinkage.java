@@ -1,12 +1,13 @@
 package hai913i.tp2;
 
-public final class AverageLinkage {
+public final class AverageLinkage implements Linkage{
 	private final Coupling coupling;
 	
 	public AverageLinkage(Coupling coupling) {
 		this.coupling = coupling;
 	}
 	
+	@Override
 	public double similarity(Cluster first, Cluster second) {
 		double sum = 0.0;
 		

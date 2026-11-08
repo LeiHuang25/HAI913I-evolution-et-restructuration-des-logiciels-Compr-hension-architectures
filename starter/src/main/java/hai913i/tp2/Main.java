@@ -72,6 +72,7 @@ public final class Main {
         Path dir = Path.of(args[0]);
         double cp = CP_DEFAUT;
         String prefix = null;
+        String linkageName = "average";
         for (int i = 1; i < args.length; i++) {
             if ("--cp".equals(args[i]) && i + 1 < args.length) {
                 try {
@@ -82,6 +83,14 @@ public final class Main {
                 }
             } else if ("--prefix".equals(args[i]) && i + 1 < args.length) {
                 prefix = args[++i];
+            } else if ("--linkage".equals(args[i]) && i + 1 < args.length){
+            	linkageName = args[++i];
+
+                if (!"average".equals(linkageName)
+                        && !"single".equals(linkageName)) {
+                    usage("--linkage doit être average ou single");
+                    return;
+                }
             } else {
                 usage("argument inconnu : " + args[i]);
                 return;
@@ -210,7 +219,20 @@ public final class Main {
         // TODO étape B1 : regroupement hiérarchique ascendant, lien moyen,
         //                 égalités départagées comme le sujet l'impose.
         
-        HierarchicalClustering clustering = new HierarchicalClustering(coupling);
+        Linkage linkage = "single".equals(linkageName)
+                ? new SingleLinkage(coupling)
+                : new AverageLinkage(coupling);
+
+        OUT.println();
+        OUT.println("Critère de liaison : " + linkageName);
+
+        HierarchicalClustering clustering =
+                new HierarchicalClustering(linkage);
+
+        // Conserver les noms historiques pour le lien moyen.
+        String resultPrefix = "single".equals(linkageName)
+                ? prefix + "-single"
+                : prefix;
 
         Cluster root = clustering.build(facts.classNames());
 
@@ -218,12 +240,12 @@ public final class Main {
         // TODO étape B2 : représenter et exporter le dendrogramme.
         
         Path treePath = Path.of(
-                "output", prefix + "-dendrogram.dot");
+                "output", resultPrefix + "-dendrogram.dot");
 
         try {
             DendrogramExporter.exportDot(root, treePath);
             Path textPath = Path.of(
-                    "output", prefix + "-dendrogram.txt");
+                    "output", resultPrefix + "-dendrogram.txt");
 
             DendrogramExporter.exportText(root, textPath);
 
@@ -280,7 +302,7 @@ public final class Main {
 
         Path modulesPath = Path.of(
                 "output",
-                prefix + "-modules-cp-" + cpLabel + ".txt");
+                resultPrefix + "-modules-cp-" + cpLabel + ".txt");
 
         try {
             ModuleExporter.exportText(
@@ -307,7 +329,8 @@ public final class Main {
         ERR.println("Erreur : " + message);
         ERR.println();
         ERR.println("Usage : java -jar hai913i-tp2.jar <dossier-des-faits>"
-                + " [--cp <valeur>] [--prefix <préfixe>]");
+                + " [--cp <valeur>] [--prefix <préfixe>]"
+                + " [--linkage average|single]");
         ERR.println();
         ERR.println("  <dossier-des-faits>  dossier contenant les trois fichiers");
         ERR.println("                       <préfixe>-classes.csv,");
@@ -317,6 +340,8 @@ public final class Main {
                 + " (défaut : " + CP_DEFAUT + ")");
         ERR.println("  --prefix <préfixe>   force le préfixe ; par défaut il est");
         ERR.println("                       déduit du dossier");
+        ERR.println("  --linkage <nom>     average ou single"
+                + " (défaut : average)");
         System.exit(1);
     }
 }

@@ -107,11 +107,66 @@ Le mode enrichi demande aussi `PREFIXE-structure.csv`, avec l'en-tête `source;t
 
 ## 5. Exécution des parties A et B
 
+Après la construction de la section 3, lancer l'analyse de référence. La sortie reste visible et est conservée dans un journal pour retrouver chaque étape :
+
+```powershell
+New-Item -ItemType Directory -Force output | Out-Null
+java -jar target/hai913i-tp2.jar ../resources `
+  --relations calls --linkage average --cp 0.025 |
+  Tee-Object -FilePath output/demo-validation.txt
+```
+
+Le dossier `output` est créé avant `Tee-Object`, pour que l'enregistrement fonctionne aussi dans une copie fraîche. Les extraits suivants proviennent de cette exécution.
+
+**A0 et A1 — chargement et couplage :**
+
+```powershell
+Get-Content -Encoding UTF8 output/demo-validation.txt -TotalCount 16
+Get-Content -Encoding UTF8 output/demo-validation.txt |
+  Select-String -Pattern @(
+    'library.model.Item <-> library.service.LoanService',
+    'Somme des couplages'
+  )
+```
+
+**A2 — graphe pondéré et rechargement :**
+
+```powershell
+Get-Content -Encoding UTF8 output/demo-validation.txt |
+  Select-String -Pattern '^Graphe de couplage :' -Context 0,5
+Get-Content -Encoding UTF8 output/demo-validation.txt |
+  Select-String -Pattern '^Graphe identique :'
+```
+
+La section 10 donne les commandes pour générer et ouvrir les images.
+
+**B1 et B2 — fusions et arbre :**
+
+```powershell
+Get-Content -Encoding UTF8 output/demo-validation.txt |
+  Select-String -Pattern '^Fusions du clustering :' -Context 0,15
+Get-Content -Encoding UTF8 output/facts-validation-dendrogram.txt -TotalCount 9
+```
+
+**B3 — coupe acceptée et coupe rejetée :**
+
+```powershell
+Get-Content -Encoding UTF8 output/demo-validation.txt |
+  Select-String -Pattern '^Modules pour CP' -Context 0,17
+java -jar target/hai913i-tp2.jar ../resources `
+  --relations calls --linkage average --cp 0.045 |
+  Tee-Object -FilePath output/demo-rejet.txt
+Get-Content -Encoding UTF8 output/demo-rejet.txt |
+  Select-String -Pattern '^Modules pour CP' -Context 0,23
+```
+
+Les deux exécutions montrent une coupe acceptée à CP=0.025 et une coupe rejetée à CP=0.045. Le rejet est signalé dans le texte ; le code de sortie reste actuellement à zéro.
+
+Pour compléter les essais avec le micro-jeu et une coupe plus grossière :
+
 ```powershell
 java -jar target/hai913i-tp2.jar ../examples --cp 0.20
 java -jar target/hai913i-tp2.jar ../resources --cp 0.015
-java -jar target/hai913i-tp2.jar ../resources --cp 0.025
-java -jar target/hai913i-tp2.jar ../resources --cp 0.045
 ```
 
 Sur la validation, les compteurs attendus sont : 15 classes, 59 méthodes, 44 arcs, dont 7 internes et 37 inter-classes. Le graphe contient 15 nœuds et 19 arêtes. `Dvd` et `LoanException` sont isolés. La somme des couplages vaut 1 et le maximum vaut 4/37. L'arbre a 14 fusions ; les premières similarités sont 4/37, 3/37 et 9/148.
@@ -126,10 +181,17 @@ Le seuil retenu pour le modèle de base est 0.025. Sur le micro-jeu, les compteu
 
 ## 6. Bonus C1 : lien simple
 
+Après l'exécution en lien moyen de la section 5, lancer le lien simple avec les mêmes données et le même CP :
+
 ```powershell
-java -jar target/hai913i-tp2.jar ../resources --linkage average --cp 0.025
-java -jar target/hai913i-tp2.jar ../resources --linkage single --cp 0.025
+java -jar target/hai913i-tp2.jar ../resources `
+  --relations calls --linkage single --cp 0.025 |
+  Tee-Object -FilePath output/demo-single.txt
+Get-Content -Encoding UTF8 output/demo-single.txt |
+  Select-String -Pattern '^Fusions du clustering :' -Context 0,3
 ```
+
+Les trois premières fusions permettent de repérer la première différence avec le résultat du lien moyen.
 
 Le lien moyen prend la moyenne sur tous les couples inter-groupes, y compris ceux de couplage nul. Le lien simple prend leur maximum. Les deux méthodes utilisent le même couplage et la même règle de départage.
 
@@ -139,7 +201,14 @@ Les choix divergent à la deuxième fusion : le lien moyen réunit `LibraryApp` 
 
 ```powershell
 java -jar target/hai913i-tp2.jar ../resources `
-  --relations enriched --linkage average --cp 0.020
+  --relations enriched --linkage average --cp 0.020 |
+  Tee-Object -FilePath output/demo-enriched.txt
+Get-Content -Encoding UTF8 output/demo-enriched.txt |
+  Select-String -Pattern @(
+    '^Relations structurelles', '^Relations externes',
+    '^Dénominateur', '^Arêtes :',
+    '^Nombre de modules', '^Contrainte M/2'
+  )
 ```
 
 Chaque relation structurelle interne compte une fois, avec le même poids qu'un arc d'appel. Le couplage enrichi additionne les deux nombres par paire, puis divise par le total des relations internes : 37 + 4 = 41 sur la validation. `arcCount` continue à compter les seuls appels ; `relationCount` compte les deux catégories.
@@ -163,15 +232,25 @@ java -cp target/hai913i-tp2.jar hai913i.tp2.ClusterExplorer ../resources
 
 La fenêtre permet de développer ou replier les branches, puis de sélectionner un groupe ou une classe. Le panneau de droite affiche les membres et, pour un groupe, la similarité de fusion et la moyenne interne.
 
-L'explorateur utilise les appels seuls et le lien moyen. Il n'accepte que le dossier des faits, sans les options de `Main`. Le changement de CP et les modes bonus se font en console.
+L'explorateur utilise les appels seuls et le lien moyen. Il n'accepte que le dossier des faits, sans les options de `Main`. Le changement de CP et les modes bonus se font en console. Fermer la fenêtre Swing pour revenir au terminal avant de lancer une autre commande.
 
 ## 9. Bonus C4 : second projet
 
 Les fichiers de `second-project` proviennent des sources du programme TP2, version `0511a68`. Ils sont déjà fournis : le TP1 n'est pas nécessaire pour les charger.
 
 ```powershell
+java -jar target/hai913i-tp2.jar ../second-project `
+  --relations calls --linkage average --cp 0.015 |
+  Tee-Object -FilePath output/demo-second.txt
+Get-Content -Encoding UTF8 output/demo-second.txt -TotalCount 16
+Get-Content -Encoding UTF8 output/demo-second.txt |
+  Select-String -Pattern '^Nombre de modules|^Maximum autorisé|^Contrainte M/2'
+```
+
+Pour comparer avec les deux autres seuils :
+
+```powershell
 java -jar target/hai913i-tp2.jar ../second-project --cp 0.025
-java -jar target/hai913i-tp2.jar ../second-project --cp 0.015
 java -jar target/hai913i-tp2.jar ../second-project --cp 0.010
 ```
 
@@ -230,6 +309,15 @@ dot -Tpng output/facts-tp2-dendrogram.dot `
   -o output/facts-tp2-dendrogram.png
 ```
 
+Pour ouvrir le graphe et le dendrogramme de validation sous Windows, puis les montrer à l'écran :
+
+```powershell
+Start-Process output/facts-validation-coupling.png
+Start-Process output/facts-validation-dendrogram.png
+```
+
+Ouvrir les images une par une et les fermer ou les réduire avant de poursuivre dans le terminal.
+
 Les labels donnent les similarités réelles. La hauteur du dessin n'est pas une échelle proportionnelle. Les deux CSV du graphe conservent les poids sans l'arrondi des labels. Pendant l'exécution, `Graphe identique : true` confirme le rechargement des nœuds et des arêtes.
 
 ## 11. Tests et conventions
@@ -283,7 +371,7 @@ $OutputEncoding = $utf8
 
 Le dossier de remise comprend le rapport PDF, ce README en PDF, les sources et données, les exports utiles et la vidéo ou son lien. Ne pas inclure `target/`, les caches et les JAR. Copier les résultats choisis de `output/` dans le dossier `sorties/` de l'archive. Les faits de `second-project/` sont des entrées nécessaires à C4 et restent versionnés.
 
-ChatGPT/Codex a été utilisé pour expliquer les calculs, proposer du code et des tests, diagnostiquer des erreurs, accompagner Git et préparer la documentation. Les propositions ont été vérifiées par compilation et exécution. Le rapport détaille ces usages, notamment le problème des accesseurs de records. La vidéo reste à enregistrer ; aucun lien de démonstration n'est annoncé comme disponible.
+ChatGPT/Codex a été utilisé pour expliquer les calculs, proposer du code et des tests, diagnostiquer des erreurs, accompagner Git et préparer la documentation. Les propositions ont été vérifiées par compilation et exécution. Le rapport détaille ces usages, notamment le problème des accesseurs de records. La vidéo reste à enregistrer ; aucun lien de démonstration n'est annoncé comme disponible. Le commentaire oral peut être remplacé par des sous-titres. Si la vidéo est hébergée en dehors de l'archive, ajouter son URL au README et au rapport, puis vérifier son accès.
 
 ## 14. Liens et références
 
@@ -297,110 +385,3 @@ ChatGPT/Codex a été utilisé pour expliquer les calculs, proposer du code et d
 - [Eclipse JDT : ASTParser](https://help.eclipse.org/latest/topic/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/core/dom/ASTParser.html)
 
 Documentation externe consultée le 8 novembre 2026.
-
-## 15. Commandes pour la vidéo de démonstration
-
-La démonstration principale couvre les parties A et B. Elle montre une construction propre, les faits chargés, le couplage et son graphe, les fusions et le dendrogramme, puis deux coupes dont une rejetée. Les commandes ci-dessous se lancent dans PowerShell **depuis `starter`**, une par une. Les journaux servent à retrouver les résultats produits pendant la vidéo ; ils ne remplacent pas l'exécution réelle.
-
-**Construction et exécution de référence :**
-
-```powershell
-mvn clean package
-New-Item -ItemType Directory -Force output | Out-Null
-java -jar target/hai913i-tp2.jar ../resources `
-  --relations calls --linkage average --cp 0.025 |
-  Tee-Object -FilePath output/demo-validation.txt
-```
-
-Attendre `BUILD SUCCESS` avant de lancer le JAR. Le build actuel exécute 34 tests. Le dossier `output` est créé avant `Tee-Object`, pour que cette commande fonctionne aussi dans une copie fraîche.
-
-**A0 et A1 — compteurs et couplage :**
-
-```powershell
-Get-Content -Encoding UTF8 output/demo-validation.txt -TotalCount 16
-Get-Content -Encoding UTF8 output/demo-validation.txt |
-  Select-String -Pattern @(
-    'library.model.Item <-> library.service.LoanService',
-    'Somme des couplages'
-  )
-```
-
-Montrer 15 classes, 59 méthodes, 44 arcs, puis 7 arcs internes, 37 inter-classes et 19 paires non nulles. Le couple Item–LoanService vaut 0.1081 et la somme vaut 1.0000.
-
-**A2 — graphe pondéré :**
-
-```powershell
-Get-Content -Encoding UTF8 output/demo-validation.txt |
-  Select-String -Pattern '^Graphe de couplage :' -Context 0,5
-Get-Content -Encoding UTF8 output/demo-validation.txt |
-  Select-String -Pattern '^Graphe identique :'
-dot -Tpng output/facts-validation-coupling.dot `
-  -o output/facts-validation-coupling.png
-Start-Process output/facts-validation-coupling.png
-```
-
-Montrer les 15 nœuds, 19 arêtes, les deux classes isolées et le contrôle de rechargement. Fermer ou réduire l'image avant de poursuivre dans le terminal.
-
-**B1 et B2 — fusions et dendrogramme :**
-
-```powershell
-Get-Content -Encoding UTF8 output/demo-validation.txt |
-  Select-String -Pattern '^Fusions du clustering :' -Context 0,15
-Get-Content -Encoding UTF8 output/facts-validation-dendrogram.txt -TotalCount 9
-dot -Tpng output/facts-validation-dendrogram.dot `
-  -o output/facts-validation-dendrogram.png
-Start-Process output/facts-validation-dendrogram.png
-```
-
-Montrer les 14 fusions, les trois premières similarités 0.1081, 0.0811 et 0.0608, puis les deux dernières à zéro. L'arbre comporte 15 feuilles et 14 nœuds internes. La hauteur du dessin n'est pas une échelle proportionnelle de similarité.
-
-**B3 — une coupe acceptée et une coupe rejetée :**
-
-```powershell
-Get-Content -Encoding UTF8 output/demo-validation.txt |
-  Select-String -Pattern '^Modules pour CP' -Context 0,17
-java -jar target/hai913i-tp2.jar ../resources `
-  --relations calls --linkage average --cp 0.045 |
-  Tee-Object -FilePath output/demo-rejet.txt
-Get-Content -Encoding UTF8 output/demo-rejet.txt |
-  Select-String -Pattern '^Modules pour CP' -Context 0,23
-```
-
-À CP=0.025, les sept modules respectent la limite de sept. À CP=0.045, les dix modules dépassent cette limite et la coupe est rejetée. Le programme signale ce rejet dans le texte ; le code de sortie n'est pas utilisé comme preuve, car il reste actuellement à zéro.
-
-**Compléments pour montrer les bonus réalisés :**
-
-```powershell
-# C1 : première différence avec le lien moyen, à la deuxième fusion.
-java -jar target/hai913i-tp2.jar ../resources `
-  --relations calls --linkage single --cp 0.025 |
-  Tee-Object -FilePath output/demo-single.txt
-Get-Content -Encoding UTF8 output/demo-single.txt |
-  Select-String -Pattern '^Fusions du clustering :' -Context 0,3
-
-# C2 : couplage enrichi, avec un seuil adapté à cette mesure.
-java -jar target/hai913i-tp2.jar ../resources `
-  --relations enriched --linkage average --cp 0.020 |
-  Tee-Object -FilePath output/demo-enriched.txt
-Get-Content -Encoding UTF8 output/demo-enriched.txt |
-  Select-String -Pattern @(
-    '^Relations structurelles', '^Relations externes',
-    '^Dénominateur', '^Arêtes :',
-    '^Nombre de modules', '^Contrainte M/2'
-  )
-
-# C3 : développer une branche, puis sélectionner un groupe.
-java -cp target/hai913i-tp2.jar hai913i.tp2.ClusterExplorer ../resources
-
-# C4 : analyser les faits reconstruits pour le second projet.
-java -jar target/hai913i-tp2.jar ../second-project `
-  --relations calls --linkage average --cp 0.015 |
-  Tee-Object -FilePath output/demo-second.txt
-Get-Content -Encoding UTF8 output/demo-second.txt -TotalCount 16
-Get-Content -Encoding UTF8 output/demo-second.txt |
-  Select-String -Pattern '^Nombre de modules|^Maximum autorisé|^Contrainte M/2'
-```
-
-Fermer la fenêtre Swing pour revenir au terminal. Pour C4, les fichiers fournis donnent 21 types, 93 méthodes, 124 arcs et dix modules à CP=0.015. La reconstruction de ces faits avec le TP1 est documentée en section 9 ; elle n'est pas remplacée par une extraction dans le TP2.
-
-Le commentaire oral peut être remplacé par des sous-titres. Une fois la vidéo enregistrée, ajouter son lien au README et au rapport si elle est hébergée en dehors de l'archive, puis vérifier qu'il est accessible.

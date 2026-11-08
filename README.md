@@ -1,59 +1,27 @@
 # HAI913I — TP2 : Compréhension et architectures
 
-Année 2026–2027 · Université de Montpellier · Enseignant : Bachar Rima
+Université de Montpellier · 2026–2027 · Lei Huang
 
-## 1. Objectif et chemin d'entrée
+Ce projet regroupe les classes d'un programme Java à partir de ses faits d'entrée. Il calcule le couplage, construit un graphe pondéré et un dendrogramme, puis sélectionne des modules avec un seuil CP.
 
-L'outil transforme des faits décrivant un projet Java en modules : chargement des classes, méthodes et arcs d'appel, calcul du couplage, graphe pondéré, clustering hiérarchique par lien moyen, dendrogramme et coupe sous contraintes.
+Les parties A et B utilisent les CSV fournis : c'est le chemin 2 du sujet. Les bonus permettent de comparer deux critères de liaison, d'ajouter l'héritage et les interfaces, de parcourir l'arbre dans une fenêtre Swing et d'analyser un second projet avec les faits reconstruits par le TP1.
 
-**Chemin 2 du sujet : jeu canonique fourni.** Le programme charge les CSV de `resources/`. Il ne relit pas les sources Java et n'utilise ni JDT ni Spoon. Aucun adaptateur vers le modèle du TP1 n'est actuellement implémenté. Le sujet autorise cette entrée au même titre que l'adaptation des faits personnels du TP1.
+## 1. Prérequis
 
-L'entrée est centralisée dans `Facts.load(...)`. Les traitements travaillent ensuite sur les faits chargés ; il n'existe pas encore d'interface Java abstraite permettant de substituer un fournisseur TP1. Cette évolution reste possible.
+Versions utilisées pour les dernières vérifications :
 
-## 2. Organisation
-
-```text
-racine-du-depot/
-  README.md
-  resources/             faits du projet de validation
-  examples/              micro-jeu et démonstrations fournies
-  starter/
-    pom.xml
-    src/main/java/hai913i/tp2/
-    src/test/java/hai913i/tp2/
-    src/test/resources/   micro-jeu utilisé par les tests
-    output/               résultats générés, ignorés par Git
-    target/               compilation et JAR, ignorés par Git
-```
-
-| Classe | Responsabilité |
+| Outil | Version |
 |---|---|
-| `Facts` | Charger les trois CSV et représenter les classes, méthodes et arcs |
-| `Coupling` | Compter les arcs inter-classes et fournir C(A,B) |
-| `CouplingGraph` | Construire le graphe, exporter DOT/CSV et recharger les CSV |
-| `Cluster` | Représenter une feuille ou une fusion avec ses membres et ses fils |
-| `AverageLinkage` | Calculer la similarité entre deux groupes |
-| `HierarchicalClustering` | Construire l'arbre avec départage déterministe |
-| `ClusteringReporter` | Afficher la liste chronologique des fusions |
-| `DendrogramExporter` | Exporter l'arbre en DOT et en texte indenté |
-| `ModuleCutter` | Calculer la moyenne interne et sélectionner les branches |
-| `ModuleExporter` | Enregistrer les modules et l'état des contraintes |
-| `Main` | Lire les arguments, coordonner les traitements et afficher les résultats |
+| Java | Oracle JDK 26, build 26+35-2893 ; compilation ciblant Java 17 |
+| Maven | 3.9.11 |
+| Graphviz | 16.1.0 |
+| Eclipse | Eclipse IDE for Java Developers, plateforme 4.41.0 |
+| Système | Windows 11, PowerShell |
+| Tests | JUnit Jupiter 5.14.4 |
 
-Toutes ces classes appartiennent au paquetage `hai913i.tp2`. Le dossier `examples` contient du support pédagogique ; il ne constitue pas le programme principal.
+Le projet demande Java 17 au minimum. Il n'a aucune dépendance d'exécution supplémentaire ; Swing fait partie du JDK. Graphviz sert seulement à convertir les DOT en images. Maven utilise les plugins compiler 3.14.1, surefire 3.5.4 et jar 3.4.2. Le premier build nécessite un accès aux dépôts Maven.
 
-## 3. Environnement
-
-- JDK : Java 17 minimum ; compilation avec `maven.compiler.release=17`. Environnement précédemment vérifié : Oracle JDK 26, build 26+35-2893.
-- Maven : 3.9.11.
-- Graphviz : 16.1.0 pour convertir les DOT en images.
-- Système : Windows 11, commandes PowerShell.
-- IDE utilisé : Eclipse ; sa version exacte reste à renseigner depuis Help > About Eclipse IDE.
-- Aucune bibliothèque d'exécution supplémentaire.
-- Tests : JUnit Jupiter 5.14.4.
-- Plugins Maven : compiler 3.14.1, surefire 3.5.4, jar 3.4.2.
-
-Vérifier les versions sur la machine utilisée pour la remise :
+Pour vérifier l'environnement :
 
 ```powershell
 java -version
@@ -61,31 +29,73 @@ mvn -v
 dot -V
 ```
 
-Un accès aux dépôts Maven est nécessaire au premier téléchargement des dépendances et plugins. Graphviz n'est pas nécessaire au calcul Java, seulement à la conversion des DOT.
+## 2. Organisation du projet
 
-## 4. Construction depuis une copie fraîche
+```text
+tp2/
+  README.md
+  resources/             faits de validation et relations structurelles
+  examples/              micro-jeu et exemples fournis
+  second-project/        faits du programme TP2 extraits avec le TP1
+  starter/
+    pom.xml
+    src/main/java/hai913i/tp2/
+    src/test/java/hai913i/tp2/
+    src/test/resources/
+    output/              résultats générés, ignorés par Git
+    target/              compilation et JAR, ignorés par Git
+```
+
+Le projet Maven à importer dans Eclipse est **starter**, car il contient le fichier `pom.xml`.
+
+| Classes | Rôle |
+|---|---|
+| `Facts`, `StructuralRelations` | Charger les faits et les relations structurelles |
+| `Coupling`, `CouplingGraph` | Calculer les poids et construire le graphe |
+| `Cluster` | Conserver les membres, les fils et la similarité d'une fusion |
+| `Linkage`, `AverageLinkage`, `SingleLinkage` | Choisir le calcul de similarité entre groupes |
+| `HierarchicalClustering` | Construire l'arbre et départager les égalités |
+| `ModuleCutter` | Couper l'arbre et calculer les moyennes internes |
+| `ClusteringReporter`, `DendrogramExporter`, `ModuleExporter` | Afficher et exporter les résultats |
+| `Main`, `ClusterExplorer` | Lancer la chaîne en console ou explorer l'arbre |
+
+L'entrée du TP2 reste centralisée dans `Facts.load`. Le TP1 fournit des CSV pour C4 ; ses classes et JDT ne sont pas chargés par le programme TP2.
+
+## 3. Construction
+
+Depuis une copie fraîche :
 
 ```powershell
-git clone https://github.com/LeiHuang25/HAI913I-evolution-et-restructuration-des-logiciels-Compr-hension-architectures.git
-cd HAI913I-evolution-et-restructuration-des-logiciels-Compr-hension-architectures/starter
+$repo = "https://github.com/LeiHuang25/" +
+  "HAI913I-evolution-et-restructuration-des-logiciels-Compr-hension-architectures.git"
+git clone $repo tp2
+cd tp2/starter
 mvn clean package
 ```
 
-La commande compile les sources, exécute les tests et produit `target/hai913i-tp2.jar`. Les commandes suivantes sont toutes exécutées **depuis `starter`**. Conserver `resources` et `examples` à côté de ce dossier : un test lit `../resources`.
+La commande compile le projet, exécute les tests et crée `target/hai913i-tp2.jar`. Les commandes suivantes se lancent **depuis starter**, sauf indication contraire. Garder `resources`, `examples` et `second-project` à côté de ce dossier : certains tests lisent les faits de `../resources`.
 
-```powershell
-mvn clean test
-```
-
-Cette dernière commande exécute les tests mais ne recrée pas le JAR après le nettoyage ; utiliser ensuite `mvn package` pour exécuter le programme.
-
-## 5. Entrées et arguments
+## 4. Entrées et options
 
 ```text
-java -jar target/hai913i-tp2.jar DOSSIER [--cp VALEUR] [--prefix PREFIXE]
+java -jar target/hai913i-tp2.jar DOSSIER
+    [--cp VALEUR] [--prefix PREFIXE]
+    [--linkage average|single] [--relations calls|enriched]
 ```
 
-Le dossier contient trois fichiers UTF-8, séparés par des points-virgules, avec en-tête :
+Cette présentation décrit la syntaxe ; saisir la commande sur une ligne ou utiliser les continuations PowerShell montrées plus bas.
+
+| Option | Fonction |
+|---|---|
+| `DOSSIER` | Dossier contenant les CSV du jeu de faits |
+| `--cp` | Seuil de moyenne interne ; 0.025 si absent |
+| `--prefix` | Préfixe des fichiers ; découvert automatiquement si absent |
+| `--linkage` | `average` par défaut, ou `single` pour C1 |
+| `--relations` | `calls` par défaut, ou `enriched` pour C2 |
+
+Le séparateur décimal est le point. La valeur par défaut de CP vient du squelette ; ce n'est pas une valeur adaptée à tous les projets.
+
+Chaque jeu contient les trois fichiers UTF-8 suivants, séparés par des points-virgules :
 
 ```text
 PREFIXE-classes.csv : class;simpleName;package
@@ -93,49 +103,106 @@ PREFIXE-methods.csv : method;owner
 PREFIXE-calls.csv   : caller;callerClass;callee;calleeClass;sites
 ```
 
-Le préfixe est découvert à partir de `*-classes.csv`. S'il existe plusieurs jeux dans le dossier, préciser `--prefix`. Les JSON fournis sont des références ; le programme actuel lit les CSV uniquement. Le fichier des classes est indispensable pour conserver les classes isolées.
+Le mode enrichi demande aussi `PREFIXE-structure.csv`, avec l'en-tête `source;target;kind`. Les valeurs de `kind` sont `extends` et `implements`. Le fichier fourni a été obtenu à partir du bloc `extra.inheritance` de `resources/facts-validation.json`. Il contient les sept relations d'origine ; le chargeur conserve les quatre relations internes et écarte les trois cibles externes. Il supprime les doublons et refuse une source absente du projet.
+
+## 5. Exécution des parties A et B
 
 ```powershell
-java -jar target/hai913i-tp2.jar ../resources --cp 0.025
 java -jar target/hai913i-tp2.jar ../examples --cp 0.20
-java -jar target/hai913i-tp2.jar ../resources --prefix facts-validation --cp 0.025
-```
-
-L'implémentation conserve la valeur par défaut 0.025 du squelette si `--cp` est absent. Cette valeur est un choix d'implémentation, pas une constante universelle prescrite par le sujet ; les expériences utilisent un CP explicite. Le séparateur décimal attendu est le point.
-
-## 6. Conventions de calcul
-
-- Une dépendance est un arc d'appel de méthode. Héritage, implémentation, types, instanciation et exceptions ne sont pas ajoutés.
-- Un arc compte une fois, même si `sites` est supérieur à 1. Les arcs intra-classe sont exclus du couplage.
-- `C(A,B) = r(A,B) / |E_inter|`, avec les deux sens agrégés ; C est symétrique et sa diagonale est nulle. Un couple absent vaut zéro. Sans arc inter-classe, les couplages valent zéro par convention.
-- Le lien moyen inclut tous les couples entre deux groupes, même ceux de valeur nulle ; son dénominateur est le produit des tailles des groupes.
-- Les classes initiales sont numérotées par nom qualifié trié. Les nouveaux groupes reçoivent les numéros suivants. Parmi les couples à moins de 1e-9 du maximum, le plus petit couple d'identifiants est retenu.
-- La coupe part de la racine : un groupe non singleton est retenu si sa moyenne sur tous ses couples internes est strictement supérieure à CP ; sinon les deux fils sont explorés. Une feuille est toujours retenue.
-- La moyenne interne du groupe est distincte de sa similarité de fusion. Après la coupe, le nombre de modules doit être au plus `M/2`, en division entière.
-
-## 7. Expériences et résultats attendus
-
-```powershell
 java -jar target/hai913i-tp2.jar ../resources --cp 0.015
 java -jar target/hai913i-tp2.jar ../resources --cp 0.025
 java -jar target/hai913i-tp2.jar ../resources --cp 0.045
 ```
 
-| CP | Modules | Maximum | Contrainte |
+Sur la validation, les compteurs attendus sont : 15 classes, 59 méthodes, 44 arcs, dont 7 internes et 37 inter-classes. Le graphe contient 15 nœuds et 19 arêtes. `Dvd` et `LoanException` sont isolés. La somme des couplages vaut 1 et le maximum vaut 4/37. L'arbre a 14 fusions ; les premières similarités sont 4/37, 3/37 et 9/148.
+
+| CP | Modules | Plus grand module | Limite de 7 |
 |---|---:|---:|---|
-| 0.015 | 4 | 7 | respectée ; un module de 11 classes |
-| 0.025 | 7 | 7 | respectée ; un module de 7 classes |
-| 0.045 | 10 | 7 | violée ; coupe rejetée |
+| 0.015 | 4 | 11 classes | respectée |
+| 0.025 | 7 | 7 classes | respectée |
+| 0.045 | 10 | 5 classes | dépassée, coupe rejetée |
 
-Le CP retenu pour l'analyse est 0.025 : compromis entre la coupe grossière à 0.015 et la coupe invalide à 0.045. Ce choix n'est pas présenté comme optimal parmi tous les seuils possibles.
+Le seuil retenu pour le modèle de base est 0.025. Sur le micro-jeu, les compteurs sont 3 classes, 5 méthodes et 4 arcs. Les deux fusions ont les similarités 2/3 puis 1/6. La moyenne interne de la racine vaut 1/3 : avec CP=0.20, elle est retenue ; avec CP=0.50, la coupe donne deux modules et dépasse le maximum de un.
 
-Contrôles sur la validation : 15 classes, 59 méthodes, 44 arcs, dont 7 intra-classe et 37 inter-classes ; 19 couples non nuls ; somme des couplages sur les couples non orientés égale à 1 ; maximum 4/37. Graphe : 15 nœuds, 19 arêtes. Classes isolées : Dvd et LoanException. Clustering : 14 fusions, premières similarités 4/37, 3/37 et 9/148 ; deux dernières nulles. Arbre : 15 feuilles et 14 nœuds internes.
+## 6. Bonus C1 : lien simple
 
-Micro-jeu : 3 classes, 5 méthodes, 4 arcs, dont 3 inter-classes ; C(A,B)=2/3, C(B,C)=1/3 ; fusions à 2/3 et 1/6. CP=0.20 donne un module acceptable ; CP=0.50 donne deux modules, au-delà du maximum de 1.
+```powershell
+java -jar target/hai913i-tp2.jar ../resources --linkage average --cp 0.025
+java -jar target/hai913i-tp2.jar ../resources --linkage single --cp 0.025
+```
 
-## 8. Sorties et visualisation
+Le lien moyen prend la moyenne sur tous les couples inter-groupes, y compris ceux de couplage nul. Le lien simple prend leur maximum. Les deux méthodes utilisent le même couplage et la même règle de départage.
 
-Le programme crée automatiquement `output/`, relatif au répertoire courant. Pour le préfixe `facts-validation`, il produit :
+Les choix divergent à la deuxième fusion : le lien moyen réunit `LibraryApp` et `Catalog` à 0.0811, alors que le lien simple ajoute `LoanService.Loan` à `{Item, LoanService}` à 0.1081. Sur le micro-jeu, les groupes fusionnés sont les mêmes, mais la dernière similarité passe de 1/6 à 1/3.
+
+## 7. Bonus C2 : relations enrichies
+
+```powershell
+java -jar target/hai913i-tp2.jar ../resources `
+  --relations enriched --linkage average --cp 0.020
+```
+
+Chaque relation structurelle interne compte une fois, avec le même poids qu'un arc d'appel. Le couplage enrichi additionne les deux nombres par paire, puis divise par le total des relations internes : 37 + 4 = 41 sur la validation. `arcCount` continue à compter les seuls appels ; `relationCount` compte les deux catégories.
+
+Le graphe enrichi contient 15 nœuds et 22 arêtes. Seul `LoanException` reste isolé ; `Dvd` est connecté à `Item`. `Book–Item` avait déjà un appel, donc la relation d'héritage augmente son poids sans créer une nouvelle arête.
+
+| CP enrichi | Modules | Limite de 7 |
+|---|---:|---|
+| 0.015 | 4 | respectée |
+| 0.020 | 7 | respectée |
+| 0.024 | 7 | respectée |
+| 0.025 | 8 | dépassée |
+
+Les valeurs 0.020 et 0.024 donnent la même partition. Le seuil retenu pour cette variante est 0.020. À 0.025, la paire `Member–ConsoleNotifier` est séparée car son poids 1/41 est inférieur au seuil. Il faut donc distinguer l'effet des nouvelles relations de celui du changement d'échelle des poids.
+
+## 8. Bonus C3 : interface graphique
+
+```powershell
+java -cp target/hai913i-tp2.jar hai913i.tp2.ClusterExplorer ../resources
+```
+
+La fenêtre permet de développer ou replier les branches, puis de sélectionner un groupe ou une classe. Le panneau de droite affiche les membres et, pour un groupe, la similarité de fusion et la moyenne interne.
+
+L'explorateur utilise les appels seuls et le lien moyen. Il n'accepte que le dossier des faits, sans les options de `Main`. Le changement de CP et les modes bonus se font en console.
+
+## 9. Bonus C4 : second projet
+
+Les fichiers de `second-project` proviennent des sources du programme TP2, version `0511a68`. Ils sont déjà fournis : le TP1 n'est pas nécessaire pour les charger.
+
+```powershell
+java -jar target/hai913i-tp2.jar ../second-project --cp 0.025
+java -jar target/hai913i-tp2.jar ../second-project --cp 0.015
+java -jar target/hai913i-tp2.jar ../second-project --cp 0.010
+```
+
+L'extraction donne 21 types et 93 méthodes pour 15 fichiers Java. Les 124 arcs comprennent 100 arcs inter-classes et 24 internes. Le graphe de couplage contient 21 nœuds et 36 arêtes, sans type isolé ; l'arbre comporte 20 fusions.
+
+| CP | Modules | Limite de 10 |
+|---|---:|---|
+| 0.025 | 13 | dépassée |
+| 0.015 | 10 | respectée |
+| 0.010 | 7 | respectée |
+
+Le seuil retenu est 0.015 : il respecte le plafond en conservant une partition plus détaillée que 0.010.
+
+Pour reconstruire les faits, utiliser le TP1 au commit `9092503`, qui contient le correctif des accesseurs de records et l'exporteur CSV. Depuis la **racine du dépôt TP2** :
+
+```powershell
+$repoTp1 = "https://github.com/LeiHuang25/" +
+  "HAI913I-evolution-et-restructuration-des-logiciels-Analyse-Statique.git"
+git clone $repoTp1 ../tp1-extractor
+git -C ../tp1-extractor checkout 9092503
+mvn -f ../tp1-extractor/starter/pom.xml clean package
+cd starter
+java -cp ../../tp1-extractor/starter/target/hai913i-tp1-analyzer.jar `
+  hai913i.tp1.Tp2FactsExportMain . ../second-project facts-tp2
+```
+
+Les statistiques 21/93/124 correspondent aux sources TP2 de `0511a68`. Une modification des sources peut changer l'extraction. L'exporteur écrit une ligne par arc et place son nombre de sites dans la dernière colonne ; le TP2 compte les arcs, pas les sites. Le graphe reste fondé sur les cibles statiques de JDT, sans expansion des implémentations possibles d'un appel d'interface.
+
+## 10. Sorties et images
+
+Le programme crée `output/` dans le répertoire courant. Pour le jeu de validation en mode de base, il produit :
 
 ```text
 facts-validation-coupling.dot
@@ -146,37 +213,56 @@ facts-validation-dendrogram.txt
 facts-validation-modules-cp-0.025.txt
 ```
 
-Le graphe CSV est rechargé pendant l'exécution ; `Graphe identique : true` vérifie les nœuds, extrémités et poids. Les CSV préservent la précision des poids ; les labels DOT sont arrondis à quatre décimales. Les exports du graphe et de l'arbre sont remplacés à chaque exécution du même jeu ; le nom du fichier des modules distingue les CP.
+Le mode enrichi utilise le préfixe `facts-validation-enriched`. Le lien simple ajoute `-single` au préfixe des arbres et des modules. Le graphe dépend du modèle de relations, pas du critère de liaison. Les exports d'un même mode sont remplacés à chaque exécution ; les noms des fichiers de modules distinguent les CP.
+
+Pour générer les images :
 
 ```powershell
-dot -Tpng output/facts-validation-coupling.dot -o output/facts-validation-coupling.png
-dot -Tpng output/facts-validation-dendrogram.dot -o output/facts-validation-dendrogram.png
-dot -Tpdf output/facts-validation-dendrogram.dot -o output/facts-validation-dendrogram.pdf
-dot -Tpng output/facts-mini-coupling.dot -o output/facts-mini-coupling.png
-dot -Tpng output/facts-mini-dendrogram.dot -o output/facts-mini-dendrogram.png
+dot -Tpng output/facts-validation-coupling.dot `
+  -o output/facts-validation-coupling.png
+dot -Tpng output/facts-validation-dendrogram.dot `
+  -o output/facts-validation-dendrogram.png
+dot -Tpng output/facts-validation-single-dendrogram.dot `
+  -o output/facts-validation-single-dendrogram.png
+dot -Tpng output/facts-validation-enriched-coupling.dot `
+  -o output/facts-validation-enriched-coupling.png
+dot -Tpng output/facts-tp2-dendrogram.dot `
+  -o output/facts-tp2-dendrogram.png
 ```
 
-Le dendrogramme porte les similarités réelles dans les labels. Les hauteurs du dessin ne sont pas proportionnelles aux similarités.
+Les labels donnent les similarités réelles. La hauteur du dessin n'est pas une échelle proportionnelle. Les deux CSV du graphe conservent les poids sans l'arrondi des labels. Pendant l'exécution, `Graphe identique : true` confirme le rechargement des nœuds et des arêtes.
 
-## 9. Tests et déterminisme
-
-La dernière validation de développement a exécuté 25 tests sans échec : FactsTest (6), CouplingTest (5), CouplingValidationTest (1), CouplingGraphTest (3), ClusterTest (2), AverageLinkageTest (2), HierarchicalClusteringTest (3), ModuleCutterTest (3). Les tests couvrent notamment les valeurs à la main, la symétrie, la somme, les classes isolées, le rechargement CSV, le départage, la structure de l'arbre et la coupe stricte.
-
-Les exporteurs de dendrogramme et de modules ont été vérifiés par exécution et lecture des sorties ; ils n'ont pas de classe de tests dédiée. Aucun test ne prouve à lui seul une architecture idéale.
-
-Comparer deux exécutions, depuis le même répertoire :
+## 11. Tests et conventions
 
 ```powershell
-java -jar target/hai913i-tp2.jar ../resources --cp 0.025 > output/run1.txt
-java -jar target/hai913i-tp2.jar ../resources --cp 0.025 > output/run2.txt
-cmd /c fc /b output\run1.txt output\run2.txt
+mvn test
 ```
 
-`fc /b` doit indiquer qu'aucune différence n'a été trouvée (code 0).
+La dernière construction a exécuté **34 tests sans échec** : 25 pour le fonctionnement initial, 2 pour le lien simple et 7 pour C2. Ils contrôlent notamment les valeurs du micro-jeu, la symétrie, la somme, le graphe, le départage, l'arbre et la coupe stricte. Les exports ont aussi été examinés dans les TXT et les images. L'interface Swing a été vérifiée manuellement.
 
-## 10. Dépannage et limites connues
+Les principales conventions sont :
 
-- Accents incorrects dans PowerShell : exécuter les commandes suivantes, puis relancer Java.
+- Les arcs internes sont exclus du couplage. Les deux sens d'appel sont agrégés dans une paire non orientée et la diagonale vaut zéro.
+- Les classes initiales sont numérotées par nom qualifié trié ; chaque fusion reçoit l'identifiant suivant. Parmi les candidats à moins de 1e-9 du maximum, le plus petit couple d'identifiants est choisi.
+- Un groupe est retenu si sa moyenne sur tous ses couples internes est **strictement supérieure** à CP. Une feuille est toujours retenue. Le plafond global est M/2 en division entière.
+- Une coupe rejetée n'est pas corrigée par des fusions arbitraires.
+
+Pour comparer deux sorties, depuis le même répertoire :
+
+```powershell
+java -jar target/hai913i-tp2.jar ../resources --linkage single > output/run1.txt
+java -jar target/hai913i-tp2.jar ../resources --linkage single > output/run2.txt
+(Get-FileHash output/run1.txt).Hash -eq (Get-FileHash output/run2.txt).Hash
+```
+
+Le résultat attendu est `True`. Cette vérification a été effectuée sur le jeu de validation. Les trois CSV de C4 ont également été comparés à une nouvelle extraction et sont identiques.
+
+## 12. Dépannage et limites
+
+- **JAR introuvable** : lancer `mvn package` depuis `starter`. Après `mvn clean test`, les tests sont exécutés, mais le JAR n'est pas recréé.
+- **Faits introuvables** : vérifier le dossier courant et les trois CSV. Mettre les chemins contenant des espaces entre guillemets. En présence de plusieurs jeux, utiliser `--prefix`.
+- **Structure CSV introuvable** : `--relations enriched` demande aussi le fichier `PREFIXE-structure.csv`. Les autres jeux peuvent être analysés avec `--relations calls`.
+- **Accents incorrects dans PowerShell** : régler l'encodage, puis relancer Java :
 
 ```powershell
 chcp 65001
@@ -186,21 +272,28 @@ $utf8 = [System.Text.UTF8Encoding]::new($false)
 $OutputEncoding = $utf8
 ```
 
-- JAR introuvable : exécuter `mvn package` depuis `starter`.
-- Dossier de faits introuvable : vérifier le répertoire courant et les trois CSV. Mettre entre guillemets les chemins contenant des espaces.
-- `dot` introuvable : installer Graphviz et rendre son dossier `bin` accessible dans PATH ; les calculs Java restent disponibles.
-- Les arguments absents/inconnus, CP non numérique ou négatif sont refusés avec le code 1. Une erreur de lecture/écriture traitée produit le code 2.
-- Limite actuelle : `NaN` et `Infinity` sont refusés par ModuleCutter, mais ne sont pas interceptés proprement par Main ; une exception peut être affichée après les premières étapes. Ne pas présenter ce cas comme une validation propre déjà acquise.
-- Une coupe dépassant M/2 est signalée et exportée comme rejetée, mais l'exécution termine actuellement avec le code 0. La violation n'est donc pas détectable uniquement par le code de sortie.
-- Le chargeur canonique contrôle le format de base, mais ne constitue pas un validateur complet de tous les CSV arbitraires. Un jeu vide n'est pas traité proprement par le clustering.
-- Pas d'adaptateur TP1, d'interface graphique, de relation enrichie ni de comparaison avec le lien simple dans cette version. Les groupes obtenus ne constituent pas automatiquement des composants déployables.
+- **dot introuvable** : installer Graphviz et ajouter son dossier `bin` au PATH. Les calculs Java peuvent être utilisés sans Graphviz.
+- Les arguments absents ou inconnus, les modes invalides et les CP non numériques ou négatifs sont refusés avec le code 1. Les erreurs de lecture ou d'écriture traitées donnent le code 2.
+- `NaN` et `Infinity` ne sont pas interceptés proprement par `Main` et peuvent déclencher une exception dans la coupe. Un jeu vide n'est pas traité proprement par le clustering.
+- Une coupe dépassant M/2 est signalée et exportée comme rejetée, mais le programme termine actuellement avec le code 0.
+- Le chargeur ne valide pas toutes les incohérences possibles de CSV arbitraires. Le modèle d'entrée reste la classe concrète `Facts`.
+- En C4, le correctif du TP1 ajoute les accesseurs implicites de records. Il ne représente pas toutes les méthodes générées par le compilateur. Les appels réfléchis et toutes les cibles dynamiques ne sont pas reconstruits.
 
-## 11. Remise, IA et liens
+## 13. Remise et utilisation de l'IA
 
-Le dossier évalué doit comporter le compte-rendu PDF, ce README en PDF, les sources avec données nécessaires, les exports et la vidéo (ou son lien accessible). Exclure `target/`, caches, JAR et journaux temporaires. Les résultats utiles sont à copier dans le dossier `sorties/` de l'archive finale ; leur exclusion de Git ne signifie pas leur exclusion du rendu.
+Le dossier de remise comprend le rapport PDF, ce README en PDF, les sources et données, les exports utiles et la vidéo ou son lien. Ne pas inclure `target/`, les caches et les JAR. Copier les résultats choisis de `output/` dans le dossier `sorties/` de l'archive. Les faits de `second-project/` sont des entrées nécessaires à C4 et restent versionnés.
 
-L'assistance ChatGPT/Codex a été utilisée pour expliquer les consignes et formules, proposer du code et des tests, diagnostiquer les erreurs, accompagner les validations et préparer la documentation. Le compte-rendu doit déclarer ces usages, les modèles effectivement utilisés si connus, les vérifications réalisées et les décisions de l'étudiant. Aucun historique complet n'est requis.
+ChatGPT/Codex a été utilisé pour expliquer les calculs, proposer du code et des tests, diagnostiquer des erreurs, accompagner Git et préparer la documentation. Les propositions ont été vérifiées par compilation et exécution. Le rapport détaille ces usages, notamment le problème des accesseurs de records. La vidéo reste à enregistrer ; aucun lien de démonstration n'est annoncé comme disponible.
 
-Dépôt : https://github.com/LeiHuang25/HAI913I-evolution-et-restructuration-des-logiciels-Compr-hension-architectures
+## 14. Liens et références
 
-Vidéo : lien à ajouter après enregistrement et vérification de l'accès. Version exacte d'Eclipse : à compléter avant remise.
+- [Dépôt TP2](https://github.com/LeiHuang25/HAI913I-evolution-et-restructuration-des-logiciels-Compr-hension-architectures)
+- [Dépôt TP1 utilisé pour C4](https://github.com/LeiHuang25/HAI913I-evolution-et-restructuration-des-logiciels-Analyse-Statique)
+- Bachar Rima, *TP2 — Annexe 1 : Regrouper des classes, implémentation, validation et restitution*, 2026–2027 : organisation des traitements, invariants et règle de coupe.
+- [Maven : cycle de construction](https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html)
+- [Graphviz : ligne de commande](https://graphviz.org/doc/info/command.html)
+- [Swing : utilisation de JTree](https://docs.oracle.com/javase/tutorial/uiswing/components/tree.html) — tutoriel JDK 8, utilisé pour les principes de navigation et de sélection.
+- [Java SE 17 : records et accesseurs implicites](https://docs.oracle.com/en/java/javase/17/language/records.html)
+- [Eclipse JDT : ASTParser](https://help.eclipse.org/latest/topic/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/core/dom/ASTParser.html)
+
+Documentation externe consultée le 8 novembre 2026.

@@ -73,6 +73,7 @@ public final class Main {
         double cp = CP_DEFAUT;
         String prefix = null;
         String linkageName = "average";
+        String relationMode = "calls";
         for (int i = 1; i < args.length; i++) {
             if ("--cp".equals(args[i]) && i + 1 < args.length) {
                 try {
@@ -89,6 +90,14 @@ public final class Main {
                 if (!"average".equals(linkageName)
                         && !"single".equals(linkageName)) {
                     usage("--linkage doit être average ou single");
+                    return;
+                }
+            } else if ("--relations".equals(args[i]) && i + 1 < args.length){
+            	relationMode = args[++i];
+
+                if (!"calls".equals(relationMode)
+                        && !"enriched".equals(relationMode)) {
+                    usage("--relations doit être calls ou enriched");
                     return;
                 }
             } else {
@@ -128,7 +137,44 @@ public final class Main {
         //                 restants par couple de classes distinctes, puis
         //                 calculer C(A, B) = r(A, B) / |E_inter|.
         
-        Coupling coupling = new Coupling(facts);
+        StructuralRelations structure = null;
+
+        if ("enriched".equals(relationMode)) {
+            Path structurePath = dir.resolve(
+                    prefix + "-structure.csv");
+
+            try {
+                structure = StructuralRelations.load(
+                        structurePath, facts.classNames());
+            } catch (IOException e) {
+                ERR.println("Lecture des relations impossible : "
+                        + e.getMessage());
+                System.exit(2);
+                return;
+            }
+        }
+
+        Coupling coupling = new Coupling(facts, structure);
+
+        OUT.println("Modèle de relations : " + relationMode);
+        OUT.printf(Locale.ROOT,
+                "Relations structurelles internes : %d%n",
+                coupling.structuralRelations());
+
+        if (structure != null) {
+            OUT.printf(Locale.ROOT,
+                    "Relations externes écartées : %d%n",
+                    structure.externalCount());
+        }
+
+        OUT.printf(Locale.ROOT,
+                "Dénominateur du couplage : %d%n",
+                coupling.totalRelations());
+
+        // Le graphe dépend du modèle de relations.
+        String graphPrefix = "enriched".equals(relationMode)
+                ? prefix + "-enriched"
+                : prefix;
 
         OUT.printf(Locale.ROOT, "Arcs intra-classe   : %d%n",
                 coupling.intraClassArcs());
@@ -185,15 +231,15 @@ public final class Main {
             OUT.println("  " + name);
         }
         
-        Path dotPath = Path.of("output", prefix + "-coupling.dot");
+        Path dotPath = Path.of("output", graphPrefix + "-coupling.dot");
 
         try {
             graph.exportDot(dotPath);
             OUT.println("Export DOT : " + dotPath.toAbsolutePath());
             
-            graph.exportCsv(Path.of("output"), prefix);
+            graph.exportCsv(Path.of("output"), graphPrefix);
             CouplingGraph reloaded = CouplingGraph.loadCsv(
-                    Path.of("output"), prefix);
+                    Path.of("output"), graphPrefix);
 
             boolean identical =
                     graph.nodes().equals(reloaded.nodes())
@@ -231,8 +277,8 @@ public final class Main {
 
         // Conserver les noms historiques pour le lien moyen.
         String resultPrefix = "single".equals(linkageName)
-                ? prefix + "-single"
-                : prefix;
+                ? graphPrefix + "-single"
+                : graphPrefix;
 
         Cluster root = clustering.build(facts.classNames());
 
@@ -330,7 +376,8 @@ public final class Main {
         ERR.println();
         ERR.println("Usage : java -jar hai913i-tp2.jar <dossier-des-faits>"
                 + " [--cp <valeur>] [--prefix <préfixe>]"
-                + " [--linkage average|single]");
+                + " [--linkage average|single]"
+                + " [--relations calls|enriched]");
         ERR.println();
         ERR.println("  <dossier-des-faits>  dossier contenant les trois fichiers");
         ERR.println("                       <préfixe>-classes.csv,");
@@ -342,6 +389,8 @@ public final class Main {
         ERR.println("                       déduit du dossier");
         ERR.println("  --linkage <nom>     average ou single"
                 + " (défaut : average)");
+        ERR.println("  --relations <nom>   calls ou enriched"
+                + " (défaut : calls)");
         System.exit(1);
     }
 }
